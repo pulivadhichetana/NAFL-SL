@@ -519,10 +519,19 @@
       el.innerHTML = 'No student data uploaded yet.';
       return;
     }
+    var withGrade = state.students.filter(function(s){ return s.grade; });
+    if(!withGrade.length){
+      el.innerHTML = '<b>'+state.students.length+'</b> students on file, but <b>none have a grade recorded</b> — the Grade/Class column probably wasn\'t mapped during upload. Teachers won\'t see any grade options until this is fixed. Re-upload and check the "Grade / Class column" dropdown before saving.';
+      el.parentElement.classList.add('status','err');
+      return;
+    }
+    el.parentElement.classList.remove('status','err');
     var grades = {};
-    state.students.forEach(function(s){ grades[s.grade] = (grades[s.grade]||0)+1; });
+    var noGradeCount = state.students.length - withGrade.length;
+    withGrade.forEach(function(s){ grades[s.grade] = (grades[s.grade]||0)+1; });
     var gradeList = Object.keys(grades).sort().map(function(g){ return g+' ('+grades[g]+')'; }).join(', ');
-    el.innerHTML = '<b>'+state.students.length+'</b> students on file across grades: '+gradeList;
+    el.innerHTML = '<b>'+state.students.length+'</b> students on file across grades: '+gradeList +
+      (noGradeCount ? ' — <b>'+noGradeCount+'</b> student(s) have no grade recorded and won\'t appear for teachers.' : '');
   }
   document.getElementById('btnRefreshMaster').onclick = function(){ loadAll(); };
   document.getElementById('btnClearMaster').onclick = async function(){
@@ -767,7 +776,11 @@
     var wrap = document.getElementById('gradeChecks');
     var grades = uniqueSorted(state.students.map(function(s){ return s.grade; }));
     if(!grades.length){
-      wrap.innerHTML = '<span class="chip-empty">No student data yet — ask admin to upload the master list.</span>';
+      if(state.students.length){
+        wrap.innerHTML = '<span class="chip-empty">'+state.students.length+' students are on file, but none have a grade recorded — ask admin to check the Grade/Class column mapping when re-uploading.</span>';
+      } else {
+        wrap.innerHTML = '<span class="chip-empty">No student data yet — ask admin to upload the master list.</span>';
+      }
       return;
     }
     state.selectedGrades = new Set(Array.from(state.selectedGrades).filter(function(g){ return grades.indexOf(g)>-1; }));
