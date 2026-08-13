@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Parent Attendance Sheet — NAFL</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --ink:#1c2438;
+    --navy:#1e2f52;
+    --navy-deep:#12203c;
+    --brass:#a8783a;
+    --brass-light:#c99a55;
+    --paper:#faf8f3;
+    --paper-line:#e4ddcd;
+    --slate:#5c6478;
+    --ok:#2f7a4f;
+    --err:#a53a3a;
+    --radius:3px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  #appUI{max-width:960px;margin:0 auto;padding:28px 24px 80px;}
+
+  /* ---------- top bar ---------- */
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding-bottom:18px;margin-bottom:24px;
+    border-bottom:2px solid var(--navy);
+  }
+  .brand{display:flex;align-items:center;gap:12px;}
+  .crest{
+    width:38px;height:38px;border-radius:50%;
+    background:var(--navy);color:var(--brass-light);
+    display:flex;align-items:center;justify-content:center;
+    font-family:Georgia,'Times New Roman',serif;font-weight:700;font-size:14px;
+    border:2px solid var(--brass);
+    flex-shrink:0;
+  }
+  .brand-text .title{font-weight:700;font-size:15px;letter-spacing:.02em;color:var(--navy-deep);}
+  .brand-text .sub{font-size:11.5px;color:var(--slate);}
+  .role-toggle{display:flex;border:1.5px solid var(--navy);border-radius:20px;overflow:hidden;}
+  .role-toggle button{
+    border:none;background:transparent;padding:7px 18px;font-size:13px;font-weight:600;
+    cursor:pointer;color:var(--navy);font-family:inherit;transition:background .15s,color .15s;
+  }
+  .role-toggle button.active{background:var(--navy);color:#fff;}
+
+  section.view{display:none;}
+  section.view.active{display:block;}
+
+  h2.section-title{
+    font-size:13px;text-transform:uppercase;letter-spacing:.08em;
+    color:var(--brass);margin:0 0 4px;font-weight:700;
+  }
+  p.section-desc{margin:0 0 18px;font-size:13.5px;color:var(--slate);}
+
+  .card{
+    background:#fff;border:1px solid var(--paper-line);border-radius:var(--radius);
+    padding:22px;margin-bottom:20px;
+  }
+  label{display:block;font-size:12.5px;font-weight:600;color:var(--ink);margin-bottom:6px;}
+  input[type=text],input[type=date],select{
+    width:100%;padding:10px 12px;border:1px solid #c9c2ae;border-radius:var(--radius);
+    font-size:14px;font-family:inherit;color:var(--ink);background:#fff;
+  }
+  input[type=text]:focus,input[type=date]:focus,select:focus{outline:2px solid var(--brass-light);outline-offset:1px;border-color:var(--brass);}
+  .field{margin-bottom:16px;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+
+  .btn{
+    display:inline-flex;align-items:center;gap:7px;
+    background:var(--navy);color:#fff;border:none;border-radius:var(--radius);
+    padding:10px 18px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit;
+  }
+  .btn:hover{background:var(--navy-deep);}
+  .btn:disabled{background:#b7bcc7;cursor:not-allowed;}
+  .btn.secondary{background:#fff;color:var(--navy);border:1.5px solid var(--navy);}
+  .btn.secondary:hover{background:#f2f0ea;}
+  .btn.brass{background:var(--brass);}
+  .btn.brass:hover{background:#8f6428;}
+  .btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;}
+
+  .filebox{
+    border:1.5px dashed #c9c2ae;border-radius:var(--radius);padding:20px;text-align:center;
+    color:var(--slate);font-size:13px;cursor:pointer;
+  }
+  .filebox:hover{border-color:var(--brass);}
+  .filebox input{display:none;}
+
+  .status{font-size:12.5px;margin-top:10px;padding:8px 10px;border-radius:var(--radius);}
+  .status.ok{background:#eaf5ee;color:var(--ok);}
+  .status.err{background:#fbeaea;color:var(--err);}
+  .status.info{background:#eef1f8;color:var(--navy);}
+
+  table.data-preview{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:14px;}
+  table.data-preview th,table.data-preview td{
+    border:1px solid var(--paper-line);padding:6px 8px;text-align:left;
+  }
+  table.data-preview th{background:var(--navy);color:#fff;font-weight:600;}
+  table.data-preview tr:nth-child(even){background:#faf9f5;}
+
+  .checks{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;}
+  .chip{
+    border:1.5px solid #c9c2ae;border-radius:16px;padding:6px 13px;font-size:12.5px;
+    cursor:pointer;user-select:none;color:var(--ink);background:#fff;
+  }
+  .chip input{display:none;}
+  .chip.checked{background:var(--navy);border-color:var(--navy);color:#fff;}
+  .chip-empty{font-size:12.5px;color:var(--slate);font-style:italic;}
+
+  .match-count{font-size:13px;color:var(--slate);margin-top:10px;}
+  .match-count b{color:var(--navy-deep);}
+
+  /* ---------- printable sheet ---------- */
+  #sheetWrap{display:none;}
+  #sheetWrap.ready{display:block;}
+  #sheetPreview{
+    background:#fff;border:1px solid var(--paper-line);padding:36px 42px;
+    font-family:Georgia,'Times New Roman',serif;color:#161616;
+  }
+  .sheet-head{text-align:center;margin-bottom:6px;}
+  .sheet-school{font-size:22px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:#161616;}
+  .sheet-addr{font-size:12px;color:#444;margin-top:2px;}
+  .sheet-rule{border:none;border-top:2px solid #161616;border-bottom:1px solid #161616;height:3px;margin:10px 0 14px;}
+  .sheet-doctitle{text-align:center;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px;}
+  .sheet-meta{
+    display:flex;justify-content:space-between;font-size:13px;margin-bottom:16px;
+    border-top:1px solid #ccc;border-bottom:1px solid #ccc;padding:8px 2px;
+  }
+  .sheet-meta span b{font-weight:700;}
+  table.sheet-table{width:100%;border-collapse:collapse;font-size:13px;}
+  table.sheet-table th,table.sheet-table td{border:1px solid #161616;padding:8px 10px;}
+  table.sheet-table th{background:#eee;text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.03em;}
+  table.sheet-table td.sl{width:48px;text-align:center;}
+  table.sheet-table td.sig{width:170px;}
+  .sheet-grade-row td{background:#f4f1e9;font-weight:700;font-size:12.5px;text-transform:uppercase;}
+  .sheet-foot{display:flex;justify-content:space-between;margin-top:34px;font-size:12.5px;}
+
+  @media print{
+    body *{visibility:hidden;}
+    #sheetWrap, #sheetWrap *{visibility:visible;}
+    #sheetWrap{position:absolute;top:0;left:0;width:100%;display:block !important;}
+    #sheetPreview{border:none;padding:0;}
+  }
+
+  @media (max-width:640px){
+    .row2{grid-template-columns:1fr;}
+    .topbar{flex-direction:column;align-items:flex-start;gap:12px;}
+  }
+</style>
+</head>
+<body>
+
+<div id="appUI">
+  <div class="topbar">
+    <div class="brand">
+      <div class="crest">N</div>
+      <div class="brand-text">
+        <div class="title" id="schoolNameDisplay">National Academy for Learning</div>
+        <div class="sub">Parent Attendance Sheet Generator</div>
+      </div>
+    </div>
+    <div class="role-toggle">
+      <button id="btnRoleAdmin">Admin</button>
+      <button id="btnRoleTeacher" class="active">Teacher</button>
+    </div>
+  </div>
+
+  <!-- ===================== ADMIN VIEW ===================== -->
+  <section id="adminView" class="view">
+
+    <div id="adminLogin" class="card" style="max-width:360px;">
+      <h2 class="section-title">Admin sign-in</h2>
+      <p class="section-desc">Only school admin should have this username and password.</p>
+      <div class="field">
+        <label for="adminUser">Username</label>
+        <input type="text" id="adminUser" autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="adminPass">Password</label>
+        <input type="password" id="adminPass" autocomplete="current-password">
+      </div>
+      <button class="btn" id="btnAdminLogin">Sign in</button>
+      <div id="adminLoginStatus"></div>
+    </div>
+
+    <div id="adminContent" style="display:none;">
+      <div class="btn-row" style="justify-content:flex-end;margin-bottom:14px;">
+        <button class="btn secondary" id="btnAdminLogout">Sign out of admin</button>
+      </div>
+
+      <h2 class="section-title">School details</h2>
+      <p class="section-desc">This name and address appear as the heading on every generated attendance sheet.</p>
+      <div class="card">
+        <div class="row2">
+          <div class="field">
+            <label for="schoolNameInput">School name</label>
+            <input type="text" id="schoolNameInput" value="National Academy for Learning">
+          </div>
+          <div class="field">
+            <label for="schoolAddrInput">Address / affiliation line (optional)</label>
+            <input type="text" id="schoolAddrInput" placeholder="e.g. CBSE Affiliation No. XXXXXX, Bengaluru">
+          </div>
+        </div>
+        <button class="btn" id="btnSaveSchool">Save school details</button>
+        <div id="schoolStatus"></div>
+      </div>
+
+      <h2 class="section-title">Master student data</h2>
+      <p class="section-desc">Upload the whole-school student list once. Teachers pull names for their attendance sheets from this data — no re-entry needed. Uploading again replaces the current list. Works with any .xlsx, .xls, or .csv layout — pick which sheet, header row, and columns to use below.</p>
+      <div class="card">
+        <label class="filebox" id="fileBoxLabel">
+          <div id="fileBoxText">Click to choose an Excel or CSV file<br><span style="font-size:11.5px;">Any column order or names — you'll map columns after upload</span></div>
+          <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+        </label>
+        <div id="uploadStatus"></div>
+
+        <div id="uploadMapWrap" style="display:none;margin-top:16px;">
+          <div class="row2">
+            <div class="field" id="sheetSelectField" style="display:none;">
+              <label for="uploadSheetSelect">Sheet</label>
+              <select id="uploadSheetSelect"></select>
+            </div>
+            <div class="field">
+              <label for="uploadHeaderRowSelect">Header row</label>
+              <select id="uploadHeaderRowSelect"></select>
+            </div>
+          </div>
+          <div class="row2">
+            <div class="field">
+              <label for="mapName">Student name column *</label>
+              <select id="mapName"></select>
+            </div>
+            <div class="field">
+              <label for="mapGrade">Grade / Class column</label>
+              <select id="mapGrade"></select>
+            </div>
+          </div>
+          <div class="row2">
+            <div class="field">
+              <label for="mapSection">Section column</label>
+              <select id="mapSection"></select>
+            </div>
+            <div class="field">
+              <label for="mapAdm">Admission / Roll no. column</label>
+              <select id="mapAdm"></select>
+            </div>
+          </div>
+          <button class="btn secondary" id="btnApplyMapping">Preview with these columns</button>
+        </div>
+
+        <div id="uploadPreviewWrap" style="display:none;">
+          <div class="match-count" id="uploadCount"></div>
+          <table class="data-preview" id="uploadPreviewTable"></table>
+          <div class="btn-row">
+            <button class="btn" id="btnConfirmUpload">Save to master data</button>
+            <button class="btn secondary" id="btnCancelUpload">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <h2 class="section-title">Current master data</h2>
+      <div class="card">
+        <div id="masterSummary" class="match-count">Loading…</div>
+        <div class="btn-row">
+          <button class="btn secondary" id="btnRefreshMaster">Refresh</button>
+          <button class="btn secondary" id="btnClearMaster" style="border-color:var(--err);color:var(--err);">Clear all student data</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== TEACHER VIEW ===================== -->
+  <section id="teacherView" class="view active">
+    <h2 class="section-title">Event details</h2>
+    <p class="section-desc">Enter the event, pick the date and grade(s), then generate the parent attendance sheet for signing.</p>
+    <div class="card">
+      <div class="field">
+        <label for="eventNameInput">Event name</label>
+        <input type="text" id="eventNameInput" placeholder="e.g. Annual Day Rehearsal, PTM — Term 1">
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label for="eventDateInput">Date</label>
+          <input type="date" id="eventDateInput">
+        </div>
+        <div class="field">
+          <label for="inchargeInput">Teacher in-charge (optional)</label>
+          <input type="text" id="inchargeInput" placeholder="Name of the teacher in-charge">
+        </div>
+      </div>
+      <div class="field">
+        <label>Grade(s)</label>
+        <div class="checks" id="gradeChecks"><span class="chip-empty">Loading grades from master data…</span></div>
+      </div>
+      <div class="field">
+        <label>Section(s) <span style="font-weight:400;color:var(--slate);">— optional, defaults to all sections in the selected grade(s)</span></label>
+        <div class="checks" id="sectionChecks"><span class="chip-empty">Select a grade first</span></div>
+      </div>
+      <div class="match-count" id="matchCount"></div>
+      <div class="btn-row">
+        <button class="btn brass" id="btnGenerate">Generate attendance sheet</button>
+      </div>
+    </div>
+
+    <div id="sheetWrap">
+      <h2 class="section-title">Preview</h2>
+      <div id="sheetPreview"></div>
+      <div class="btn-row no-print" style="margin-top:16px;">
+        <button class="btn" id="btnPrint">Print</button>
+        <button class="btn secondary" id="btnPdf">Download PDF</button>
+        <button class="btn secondary" id="btnDoc">Download Word (.doc)</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ===================================================================
+  // Paste your deployed Google Apps Script Web App URL below (ends in
+  // /exec). Until you do, the app falls back to this browser's local
+  // storage so you can test it — but data won't be shared between
+  // devices until the backend is connected. See DEPLOYMENT.md.
+  // ===================================================================
+  var CONFIG = {
+    API_URL: "https://script.google.com/macros/s/AKfycbxtgfr5QNY9pmZOWm22wE9M0ou-NrRhBrdmmAy08InwR7NfNgh_dEJNHyQ9c3hoTbecnQ/exec"
+  };
+  var BACKEND_READY = CONFIG.API_URL.indexOf("PASTE_YOUR") !== 0 && CONFIG.API_URL.trim() !== "";
+
+  var ADMIN_USER = "nafl";
+  var ADMIN_PASS = "nafl@123";
+
+  var state = {
+    students: [],        // {name, grade, section, admissionNo}
+    schoolName: "National Academy for Learning",
+    schoolAddr: "",
+    role: "teacher",
+    pendingUpload: null,
+    uploadWorkbook: null,
+    uploadGrid: null,
+    selectedGrades: new Set(),
+    selectedSections: new Set()
+  };
+
+  // ---------- backend layer: Apps Script if configured, else local fallback ----------
+  // Reads the raw response as text first (Apps Script sometimes returns an
+  // HTML permission/login page instead of JSON if the deployment isn't set
+  // to "Anyone" access) so failures show a useful message instead of a
+  // generic "could not save".
+  function parseBackendResponse(promise){
+    return promise
+      .then(function(r){ return r.text().then(function(t){ return {status:r.status, text:t}; }); })
+      .then(function(res){
+        var data;
+        try{ data = JSON.parse(res.text); }
+        catch(e){
+          throw new Error('Server returned an unexpected response (HTTP '+res.status+'). This usually means the Apps Script deployment isn\'t set to "Anyone" access, or the URL is wrong.');
+        }
+        if(data && data.ok === false){
+          throw new Error(data.error || 'Backend reported an error.');
+        }
+        return data;
+      });
+  }
+  function backendGet(action){
+    if(!BACKEND_READY) return Promise.resolve(null);
+    return parseBackendResponse(
+      fetch(CONFIG.API_URL + "?action=" + encodeURIComponent(action)).catch(function(){
+        throw new Error('Network request was blocked before reaching the server ("Failed to fetch"). This almost always means: (1) this page is open as a local file instead of hosted online — file:// pages can\'t reach Apps Script, or (2) the Apps Script deployment access isn\'t set to "Anyone". Test the URL directly in a new browser tab — it should show JSON, not a Google sign-in page.');
+      })
+    );
+  }
+  function backendPost(action, payload){
+    if(!BACKEND_READY) return Promise.resolve({ok:true});
+    var body = Object.assign({action:action}, payload);
+    return parseBackendResponse(
+      fetch(CONFIG.API_URL, {
+        method: "POST",
+        headers: {"Content-Type": "text/plain;charset=utf-8"}, // avoids CORS preflight against Apps Script
+        body: JSON.stringify(body)
+      }).catch(function(){
+        throw new Error('Network request was blocked before reaching the server ("Failed to fetch"). This almost always means: (1) this page is open as a local file instead of hosted online — file:// pages can\'t reach Apps Script, or (2) the Apps Script deployment access isn\'t set to "Anyone". Test the URL directly in a new browser tab — it should show JSON, not a Google sign-in page.');
+      })
+    );
+  }
+
+  // ---------- storage helpers ----------
+  async function loadAll(){
+    try{
+      if(BACKEND_READY){
+        var res = await backendGet('getMasterData');
+        state.students = (res && res.students) ? res.students : [];
+      } else {
+        var local = localStorage.getItem('nafl-master-students');
+        state.students = local ? JSON.parse(local) : [];
+      }
+    }catch(e){ state.students = []; }
+
+    try{
+      if(BACKEND_READY){
+        var meta = await backendGet('getMeta');
+        if(meta){ state.schoolName = meta.name || state.schoolName; state.schoolAddr = meta.addr || ""; }
+      } else {
+        var localMeta = localStorage.getItem('nafl-school-meta');
+        if(localMeta){ var m = JSON.parse(localMeta); state.schoolName = m.name || state.schoolName; state.schoolAddr = m.addr || ""; }
+      }
+    }catch(e){ /* no meta yet */ }
+
+    document.getElementById('schoolNameDisplay').textContent = state.schoolName;
+    document.getElementById('schoolNameInput').value = state.schoolName;
+    document.getElementById('schoolAddrInput').value = state.schoolAddr;
+    renderMasterSummary();
+    renderGradeChips();
+    renderBackendNotice();
+  }
+
+  function renderBackendNotice(){
+    if(BACKEND_READY) return;
+    var notice = document.getElementById('backendNotice');
+    if(notice) return;
+    notice = document.createElement('div');
+    notice.id = 'backendNotice';
+    notice.className = 'status info';
+    notice.style.marginBottom = '18px';
+    notice.textContent = 'Backend not connected yet — running on this browser only. Paste your Apps Script Web App URL into CONFIG.API_URL in the file to share data across devices.';
+    document.getElementById('appUI').insertBefore(notice, document.getElementById('adminView'));
+  }
+
+  async function saveSchoolMeta(){
+    var name = document.getElementById('schoolNameInput').value.trim() || "National Academy for Learning";
+    var addr = document.getElementById('schoolAddrInput').value.trim();
+    state.schoolName = name; state.schoolAddr = addr;
+    var statusEl = document.getElementById('schoolStatus');
+    statusEl.innerHTML = '<div class="status info">Saving…</div>';
+    try{
+      if(BACKEND_READY){
+        await backendPost('saveMeta', {name:name, addr:addr});
+      } else {
+        localStorage.setItem('nafl-school-meta', JSON.stringify({name:name, addr:addr}));
+      }
+      document.getElementById('schoolNameDisplay').textContent = name;
+      statusEl.innerHTML = '<div class="status ok">Saved.</div>';
+    }catch(e){
+      statusEl.innerHTML = '<div class="status err">Could not save: '+esc(e.message || String(e))+'</div>';
+    }
+  }
+
+  async function saveMasterStudents(list){
+    if(BACKEND_READY){
+      await backendPost('saveMasterData', {students:list});
+    } else {
+      localStorage.setItem('nafl-master-students', JSON.stringify(list));
+    }
+    state.students = list;
+  }
+
+  // ---------- admin login gate ----------
+  function isAdminAuthed(){
+    return sessionStorage.getItem('nafl-admin-authed') === 'yes';
+  }
+  function showAdminGate(){
+    var authed = isAdminAuthed();
+    document.getElementById('adminLogin').style.display = authed ? 'none' : 'block';
+    document.getElementById('adminContent').style.display = authed ? 'block' : 'none';
+  }
+  document.getElementById('btnAdminLogin').onclick = function(){
+    var u = document.getElementById('adminUser').value.trim();
+    var p = document.getElementById('adminPass').value;
+    var statusEl = document.getElementById('adminLoginStatus');
+    if(u === ADMIN_USER && p === ADMIN_PASS){
+      sessionStorage.setItem('nafl-admin-authed', 'yes');
+      statusEl.innerHTML = '';
+      document.getElementById('adminUser').value = '';
+      document.getElementById('adminPass').value = '';
+      showAdminGate();
+    } else {
+      statusEl.innerHTML = '<div class="status err">Incorrect username or password.</div>';
+    }
+  };
+  document.getElementById('adminPass').addEventListener('keydown', function(e){
+    if(e.key === 'Enter') document.getElementById('btnAdminLogin').click();
+  });
+  document.getElementById('btnAdminLogout').onclick = function(){
+    sessionStorage.removeItem('nafl-admin-authed');
+    showAdminGate();
+  };
+
+  // ---------- role toggle ----------
+  function setRole(role){
+    state.role = role;
+    document.getElementById('btnRoleAdmin').classList.toggle('active', role==='admin');
+    document.getElementById('btnRoleTeacher').classList.toggle('active', role==='teacher');
+    document.getElementById('adminView').classList.toggle('active', role==='admin');
+    document.getElementById('teacherView').classList.toggle('active', role==='teacher');
+    if(role==='admin'){ showAdminGate(); }
+    if(role==='teacher'){ renderGradeChips(); }
+  }
+  document.getElementById('btnRoleAdmin').onclick = function(){ setRole('admin'); };
+  document.getElementById('btnRoleTeacher').onclick = function(){ setRole('teacher'); };
+  document.getElementById('btnSaveSchool').onclick = saveSchoolMeta;
+
+  // ---------- admin: master data summary ----------
+  function renderMasterSummary(){
+    var el = document.getElementById('masterSummary');
+    if(!state.students.length){
+      el.innerHTML = 'No student data uploaded yet.';
+      return;
+    }
+    var withGrade = state.students.filter(function(s){ return s.grade; });
+    if(!withGrade.length){
+      el.innerHTML = '<b>'+state.students.length+'</b> students on file, but <b>none have a grade recorded</b> — the Grade/Class column probably wasn\'t mapped during upload. Teachers won\'t see any grade options until this is fixed. Re-upload and check the "Grade / Class column" dropdown before saving.';
+      el.parentElement.classList.add('status','err');
+      return;
+    }
+    el.parentElement.classList.remove('status','err');
+    var grades = {};
+    var noGradeCount = state.students.length - withGrade.length;
+    withGrade.forEach(function(s){ grades[s.grade] = (grades[s.grade]||0)+1; });
+    var gradeList = Object.keys(grades).sort().map(function(g){ return g+' ('+grades[g]+')'; }).join(', ');
+    el.innerHTML = '<b>'+state.students.length+'</b> students on file across grades: '+gradeList +
+      (noGradeCount ? ' — <b>'+noGradeCount+'</b> student(s) have no grade recorded and won\'t appear for teachers.' : '');
+  }
+  document.getElementById('btnRefreshMaster').onclick = function(){ loadAll(); };
+  document.getElementById('btnClearMaster').onclick = async function(){
+    if(!confirm('This removes all uploaded student data. Continue?')) return;
+    await saveMasterStudents([]);
+    renderMasterSummary();
+    renderGradeChips();
+  };
+
+  // ---------- admin: file upload (any layout, with sheet/header/column mapping) ----------
+  function normalizeHeader(h){ return String(h||'').trim().toLowerCase(); }
+
+  var NAME_WORDS = ['student name','name of student','name of the student','pupil name','child name','name'];
+  var GRADE_WORDS = ['grade','class','std','standard','yr','year'];
+  var SECTION_WORDS = ['section','sec','div','division'];
+  var ADM_WORDS = ['admission','adm no','admno','adm.no','roll no','roll number','rollno','student id','id no'];
+  var EXCLUDE_NAME_WORDS = ['parent','father','mother','guardian','teacher'];
+
+  function cellMatches(cell, words){
+    var c = normalizeHeader(cell);
+    if(!c) return false;
+    return words.some(function(w){ return c.indexOf(w) > -1; });
+  }
+  function isNameCell(cell){
+    var c = normalizeHeader(cell);
+    if(!c) return false;
+    if(EXCLUDE_NAME_WORDS.some(function(w){ return c.indexOf(w) > -1; })) return false;
+    return NAME_WORDS.some(function(w){ return c.indexOf(w) > -1; });
+  }
+
+  // Score a single row as a candidate header row.
+  function scoreHeaderRow(row){
+    if(!row) return {score:0, nameIdx:-1, gradeIdx:-1, sectionIdx:-1, admIdx:-1};
+    var nameIdx = row.findIndex(isNameCell);
+    var gradeIdx = row.findIndex(function(c){ return cellMatches(c, GRADE_WORDS); });
+    var sectionIdx = row.findIndex(function(c){ return cellMatches(c, SECTION_WORDS); });
+    var admIdx = row.findIndex(function(c){ return cellMatches(c, ADM_WORDS); });
+    var score = (nameIdx>-1?3:0) + (gradeIdx>-1?1:0) + (sectionIdx>-1?1:0) + (admIdx>-1?1:0);
+    return {score:score, nameIdx:nameIdx, gradeIdx:gradeIdx, sectionIdx:sectionIdx, admIdx:admIdx};
+  }
+
+  // Scan the first N rows of a sheet's grid to find the most likely header row.
+  function findBestHeaderRow(rows){
+    var best = {rowIndex:0, score:-1};
+    var scanLimit = Math.min(rows.length, 15);
+    for(var i=0;i<scanLimit;i++){
+      var s = scoreHeaderRow(rows[i]);
+      if(s.score > best.score){
+        best = Object.assign({rowIndex:i}, s);
+      }
+    }
+    return best;
+  }
+
+  function sheetToGrid(wb, sheetName){
+    var sheet = wb.Sheets[sheetName];
+    return XLSX.utils.sheet_to_json(sheet, {header:1, raw:false, defval:''});
+  }
+
+  function populateSelect(sel, options, selectedValue){
+    sel.innerHTML = options.map(function(o){
+      return '<option value="'+esc(o.value)+'"'+(o.value===selectedValue?' selected':'')+'>'+esc(o.label)+'</option>';
+    }).join('');
+  }
+
+  function refreshMappingUI(){
+    var wb = state.uploadWorkbook;
+    var sheetName = document.getElementById('uploadSheetSelect').value || wb.SheetNames[0];
+    var grid = sheetToGrid(wb, sheetName);
+    state.uploadGrid = grid;
+
+    var headerRowSel = document.getElementById('uploadHeaderRowSelect');
+    var rowOptions = grid.slice(0, Math.min(grid.length, 15)).map(function(r, i){
+      var preview = r.filter(Boolean).slice(0,4).join(' | ') || '(blank row)';
+      return {value:String(i), label:'Row '+(i+1)+': '+preview.substring(0,60)};
+    });
+    var best = findBestHeaderRow(grid);
+    populateSelect(headerRowSel, rowOptions, String(best.rowIndex));
+
+    refreshColumnMapSelects(best);
+  }
+
+  function refreshColumnMapSelects(detected){
+    var grid = state.uploadGrid;
+    var headerRowIdx = parseInt(document.getElementById('uploadHeaderRowSelect').value, 10) || 0;
+    var headerRow = grid[headerRowIdx] || [];
+    var colOptions = [{value:'-1', label:'— none —'}].concat(
+      headerRow.map(function(h, i){
+        return {value:String(i), label: h ? (h+' (col '+(i+1)+')') : ('Column '+(i+1))};
+      })
+    );
+    var det = detected || scoreHeaderRow(headerRow);
+    populateSelect(document.getElementById('mapName'), colOptions, String(det.nameIdx));
+    populateSelect(document.getElementById('mapGrade'), colOptions, String(det.gradeIdx));
+    populateSelect(document.getElementById('mapSection'), colOptions, String(det.sectionIdx));
+    populateSelect(document.getElementById('mapAdm'), colOptions, String(det.admIdx));
+  }
+
+  function parseWithMapping(){
+    var grid = state.uploadGrid;
+    var headerRowIdx = parseInt(document.getElementById('uploadHeaderRowSelect').value, 10) || 0;
+    var nameIdx = parseInt(document.getElementById('mapName').value, 10);
+    var gradeIdx = parseInt(document.getElementById('mapGrade').value, 10);
+    var sectionIdx = parseInt(document.getElementById('mapSection').value, 10);
+    var admIdx = parseInt(document.getElementById('mapAdm').value, 10);
+
+    if(nameIdx < 0) return {error:'Pick a column for student name.'};
+
+    var out = [];
+    for(var i = headerRowIdx+1; i < grid.length; i++){
+      var r = grid[i];
+      if(!r || !r.length) continue;
+      var name = String(r[nameIdx]||'').trim();
+      if(!name) continue;
+      out.push({
+        name: name,
+        grade: gradeIdx>-1 ? String(r[gradeIdx]||'').trim() : '',
+        section: sectionIdx>-1 ? String(r[sectionIdx]||'').trim() : '',
+        admissionNo: admIdx>-1 ? String(r[admIdx]||'').trim() : ''
+      });
+    }
+    return {rows:out};
+  }
+
+  function renderUploadPreview(parsed){
+    document.getElementById('uploadCount').textContent = parsed.length + ' students found';
+    var t = document.getElementById('uploadPreviewTable');
+    var head = '<tr><th>Name</th><th>Grade</th><th>Section</th><th>Admission No.</th></tr>';
+    var body = parsed.slice(0,8).map(function(s){
+      return '<tr><td>'+esc(s.name)+'</td><td>'+esc(s.grade)+'</td><td>'+esc(s.section)+'</td><td>'+esc(s.admissionNo)+'</td></tr>';
+    }).join('');
+    if(parsed.length>8) body += '<tr><td colspan="4" style="text-align:center;color:var(--slate);">…and '+(parsed.length-8)+' more</td></tr>';
+    t.innerHTML = head + body;
+    document.getElementById('uploadPreviewWrap').style.display = 'block';
+  }
+
+  document.getElementById('fileInput').addEventListener('change', function(e){
+    var file = e.target.files[0];
+    var statusEl = document.getElementById('uploadStatus');
+    document.getElementById('uploadMapWrap').style.display = 'none';
+    document.getElementById('uploadPreviewWrap').style.display = 'none';
+    if(!file) return;
+    statusEl.innerHTML = '<div class="status info">Reading file…</div>';
+    var reader = new FileReader();
+    reader.onload = function(ev){
+      try{
+        var wb = XLSX.read(ev.target.result, {type:'array'});
+        if(!wb.SheetNames.length){
+          statusEl.innerHTML = '<div class="status err">That file has no sheets.</div>';
+          return;
+        }
+        state.uploadWorkbook = wb;
+
+        // pick the sheet whose best header row scores highest
+        var bestSheet = {name: wb.SheetNames[0], score: -1};
+        wb.SheetNames.forEach(function(name){
+          var grid = sheetToGrid(wb, name);
+          var b = findBestHeaderRow(grid);
+          if(b.score > bestSheet.score) bestSheet = {name:name, score:b.score};
+        });
+
+        var sheetField = document.getElementById('sheetSelectField');
+        var sheetSel = document.getElementById('uploadSheetSelect');
+        if(wb.SheetNames.length > 1){
+          populateSelect(sheetSel, wb.SheetNames.map(function(n){ return {value:n, label:n}; }), bestSheet.name);
+          sheetField.style.display = 'block';
+        } else {
+          populateSelect(sheetSel, [{value:wb.SheetNames[0], label:wb.SheetNames[0]}], wb.SheetNames[0]);
+          sheetField.style.display = 'none';
+        }
+
+        refreshMappingUI();
+        document.getElementById('uploadMapWrap').style.display = 'block';
+
+        if(bestSheet.score >= 3){
+          statusEl.innerHTML = '<div class="status ok">File read. Columns detected automatically — check them below, then preview.</div>';
+        } else {
+          statusEl.innerHTML = '<div class="status info">File read, but columns could not be auto-detected confidently — please pick the sheet, header row, and columns below.</div>';
+        }
+      }catch(err){
+        statusEl.innerHTML = '<div class="status err">Could not read that file. Make sure it is a valid .xlsx, .xls, or .csv (error: '+esc(err.message||String(err))+').</div>';
+      }
+    };
+    reader.onerror = function(){
+      statusEl.innerHTML = '<div class="status err">Could not read the file from disk. Try re-selecting it.</div>';
+    };
+    reader.readAsArrayBuffer(file);
+  });
+
+  document.getElementById('uploadSheetSelect').addEventListener('change', refreshMappingUI);
+  document.getElementById('uploadHeaderRowSelect').addEventListener('change', function(){ refreshColumnMapSelects(null); });
+
+  document.getElementById('btnApplyMapping').onclick = function(){
+    var statusEl = document.getElementById('uploadStatus');
+    var result = parseWithMapping();
+    if(result.error){
+      statusEl.innerHTML = '<div class="status err">'+esc(result.error)+'</div>';
+      document.getElementById('uploadPreviewWrap').style.display = 'none';
+      return;
+    }
+    if(!result.rows.length){
+      statusEl.innerHTML = '<div class="status err">No student rows found below the selected header row. Try a different header row.</div>';
+      document.getElementById('uploadPreviewWrap').style.display = 'none';
+      return;
+    }
+    state.pendingUpload = result.rows;
+    statusEl.innerHTML = '<div class="status ok">Parsed '+result.rows.length+' students. Review below, then save.</div>';
+    renderUploadPreview(result.rows);
+  };
+
+  document.getElementById('btnConfirmUpload').onclick = async function(){
+    if(!state.pendingUpload) return;
+    var statusEl = document.getElementById('uploadStatus');
+    statusEl.innerHTML = '<div class="status info">Saving…</div>';
+    try{
+      await saveMasterStudents(state.pendingUpload);
+      state.pendingUpload = null;
+      document.getElementById('uploadPreviewWrap').style.display = 'none';
+      document.getElementById('uploadMapWrap').style.display = 'none';
+      document.getElementById('fileInput').value = '';
+      statusEl.innerHTML = '<div class="status ok">Master data saved. Teachers can now generate sheets from it.</div>';
+      renderMasterSummary();
+      renderGradeChips();
+    }catch(e){
+      statusEl.innerHTML = '<div class="status err">Save failed: '+esc(e.message || String(e))+'</div>';
+    }
+  };
+  document.getElementById('btnCancelUpload').onclick = function(){
+    state.pendingUpload = null;
+    document.getElementById('uploadPreviewWrap').style.display = 'none';
+    document.getElementById('uploadMapWrap').style.display = 'none';
+    document.getElementById('fileInput').value = '';
+    document.getElementById('uploadStatus').innerHTML = '';
+  };
+
+  // ---------- teacher: grade/section selection ----------
+  function uniqueSorted(arr){
+    return Array.from(new Set(arr.filter(Boolean))).sort(function(a,b){ return a.localeCompare(b, undefined, {numeric:true}); });
+  }
+
+  function renderGradeChips(){
+    var wrap = document.getElementById('gradeChecks');
+    var grades = uniqueSorted(state.students.map(function(s){ return s.grade; }));
+    if(!grades.length){
+      if(state.students.length){
+        wrap.innerHTML = '<span class="chip-empty">'+state.students.length+' students are on file, but none have a grade recorded — ask admin to check the Grade/Class column mapping when re-uploading.</span>';
+      } else {
+        wrap.innerHTML = '<span class="chip-empty">No student data yet — ask admin to upload the master list.</span>';
+      }
+      return;
+    }
+    state.selectedGrades = new Set(Array.from(state.selectedGrades).filter(function(g){ return grades.indexOf(g)>-1; }));
+    wrap.innerHTML = grades.map(function(g){
+      var checked = state.selectedGrades.has(g);
+      return '<label class="chip'+(checked?' checked':'')+'" data-grade="'+esc(g)+'"><input type="checkbox" '+(checked?'checked':'')+'>'+esc(g)+'</label>';
+    }).join('');
+    Array.prototype.forEach.call(wrap.querySelectorAll('.chip'), function(chip){
+      chip.addEventListener('click', function(ev){
+        ev.preventDefault();
+        var g = chip.getAttribute('data-grade');
+        if(state.selectedGrades.has(g)) state.selectedGrades.delete(g); else state.selectedGrades.add(g);
+        renderGradeChips();
+        renderSectionChips();
+        updateMatchCount();
+      });
+    });
+    renderSectionChips();
+    updateMatchCount();
+  }
+
+  function renderSectionChips(){
+    var wrap = document.getElementById('sectionChecks');
+    if(!state.selectedGrades.size){
+      wrap.innerHTML = '<span class="chip-empty">Select a grade first</span>';
+      state.selectedSections = new Set();
+      return;
+    }
+    var sections = uniqueSorted(state.students.filter(function(s){ return state.selectedGrades.has(s.grade); }).map(function(s){ return s.section; }));
+    if(!sections.length){
+      wrap.innerHTML = '<span class="chip-empty">No section data — all students in the selected grade(s) will be included</span>';
+      state.selectedSections = new Set();
+      return;
+    }
+    state.selectedSections = new Set(Array.from(state.selectedSections).filter(function(s){ return sections.indexOf(s)>-1; }));
+    wrap.innerHTML = sections.map(function(s){
+      var checked = state.selectedSections.has(s);
+      return '<label class="chip'+(checked?' checked':'')+'" data-section="'+esc(s)+'"><input type="checkbox" '+(checked?'checked':'')+'>Section '+esc(s)+'</label>';
+    }).join('');
+    Array.prototype.forEach.call(wrap.querySelectorAll('.chip'), function(chip){
+      chip.addEventListener('click', function(ev){
+        ev.preventDefault();
+        var s = chip.getAttribute('data-section');
+        if(state.selectedSections.has(s)) state.selectedSections.delete(s); else state.selectedSections.add(s);
+        renderSectionChips();
+        updateMatchCount();
+      });
+    });
+  }
+
+  function matchedStudents(){
+    if(!state.selectedGrades.size) return [];
+    return state.students.filter(function(s){
+      if(!state.selectedGrades.has(s.grade)) return false;
+      if(state.selectedSections.size && !state.selectedSections.has(s.section)) return false;
+      return true;
+    });
+  }
+
+  function updateMatchCount(){
+    var m = matchedStudents();
+    var el = document.getElementById('matchCount');
+    if(!state.selectedGrades.size){ el.textContent = ''; return; }
+    el.innerHTML = '<b>'+m.length+'</b> student(s) match the current selection.';
+  }
+
+  function esc(s){
+    return String(s==null?'':s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  // ---------- generate sheet ----------
+  function formatDate(iso){
+    if(!iso) return '________________';
+    var d = new Date(iso+'T00:00:00');
+    if(isNaN(d)) return iso;
+    var opts = {day:'2-digit', month:'long', year:'numeric'};
+    return d.toLocaleDateString('en-IN', opts);
+  }
+
+  document.getElementById('btnGenerate').onclick = function(){
+    var event = document.getElementById('eventNameInput').value.trim();
+    var date = document.getElementById('eventDateInput').value;
+    var incharge = document.getElementById('inchargeInput').value.trim();
+    if(!event){ alert('Enter the event name.'); return; }
+    if(!state.selectedGrades.size){ alert('Select at least one grade.'); return; }
+    var students = matchedStudents();
+    if(!students.length){ alert('No students match this selection.'); return; }
+
+    var gradesInOrder = uniqueSorted(Array.from(state.selectedGrades));
+    var rowsHtml = '';
+    var sl = 1;
+    gradesInOrder.forEach(function(g){
+      var groupStudents = students.filter(function(s){ return s.grade===g; })
+        .sort(function(a,b){
+          if(a.section!==b.section) return (a.section||'').localeCompare(b.section||'');
+          return a.name.localeCompare(b.name);
+        });
+      if(!groupStudents.length) return;
+      if(gradesInOrder.length>1){
+        rowsHtml += '<tr class="sheet-grade-row"><td colspan="4">'+esc(g)+'</td></tr>';
+      }
+      groupStudents.forEach(function(s){
+        rowsHtml += '<tr><td class="sl">'+(sl++)+'</td><td>'+esc(s.name)+'</td><td>'+esc(s.section||'—')+'</td><td class="sig"></td></tr>';
+      });
+    });
+
+    var gradeLabel = gradesInOrder.join(', ');
+    var sectionLabel = state.selectedSections.size ? Array.from(state.selectedSections).sort().join(', ') : 'All';
+
+    var html =
+      '<div class="sheet-head">'+
+        '<div class="sheet-school">'+esc(state.schoolName)+'</div>'+
+        (state.schoolAddr ? '<div class="sheet-addr">'+esc(state.schoolAddr)+'</div>' : '')+
+      '</div>'+
+      '<hr class="sheet-rule">'+
+      '<div class="sheet-doctitle">'+esc(event)+'</div>'+
+      '<div class="sheet-meta">'+
+        '<span><b>Date:</b> '+esc(formatDate(date))+'</span>'+
+        '<span><b>Grade(s):</b> '+esc(gradeLabel)+'</span>'+
+        '<span><b>Section(s):</b> '+esc(sectionLabel)+'</span>'+
+      '</div>'+
+      (incharge ? '<div style="font-size:13px;margin-bottom:10px;"><b>Teacher in-charge:</b> '+esc(incharge)+'</div>' : '')+
+      '<table class="sheet-table">'+
+        '<thead><tr><th class="sl">Sl. No.</th><th>Name of Student</th><th>Section</th><th>Parent Signature</th></tr></thead>'+
+        '<tbody>'+rowsHtml+'</tbody>'+
+      '</table>'+
+      '<div class="sheet-foot">'+
+        '<span>Total present: ______ / '+students.length+'</span>'+
+        '<span>Teacher signature: ____________________</span>'+
+      '</div>';
+
+    document.getElementById('sheetPreview').innerHTML = html;
+    document.getElementById('sheetWrap').classList.add('ready');
+    document.getElementById('sheetWrap').scrollIntoView({behavior:'smooth', block:'start'});
+  };
+
+  function currentFileBase(){
+    var event = document.getElementById('eventNameInput').value.trim() || 'Attendance Sheet';
+    var date = document.getElementById('eventDateInput').value; // YYYY-MM-DD
+    return safeFilename(event) + (date ? ('_' + date) : '');
+  }
+
+  document.getElementById('btnPrint').onclick = function(){ window.print(); };
+
+  document.getElementById('btnDoc').onclick = function(){
+    var event = document.getElementById('eventNameInput').value.trim() || 'Attendance Sheet';
+    var content = document.getElementById('sheetPreview').innerHTML;
+    var docHtml =
+      '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">'+
+      '<head><meta charset="utf-8"><title>'+esc(event)+'</title>'+
+      '<style>body{font-family:Georgia,\'Times New Roman\',serif;} table{border-collapse:collapse;width:100%;} '+
+      'th,td{border:1px solid #161616;padding:8px;font-size:13px;} th{background:#eee;} '+
+      '.sheet-head{text-align:center;} .sheet-school{font-size:22px;font-weight:bold;text-transform:uppercase;} '+
+      '.sheet-doctitle{text-align:center;font-size:15px;font-weight:bold;text-transform:uppercase;} '+
+      '.sheet-grade-row td{background:#f4f1e9;font-weight:bold;}</style></head><body>'+
+      content+'</body></html>';
+    var blob = new Blob(['\ufeff', docHtml], {type:'application/msword'});
+    var link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = currentFileBase()+'.doc';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // PDF export: render the sheet to a canvas via html2canvas, then slice it
+  // across A4 pages. More reliable for tables than jsPDF's built-in html().
+  document.getElementById('btnPdf').onclick = function(){
+    var btn = document.getElementById('btnPdf');
+    var el = document.getElementById('sheetPreview');
+    var originalLabel = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Preparing…';
+
+    html2canvas(el, {scale:2, backgroundColor:'#ffffff'}).then(function(canvas){
+      var jsPDF = window.jspdf.jsPDF;
+      var pdf = new jsPDF('p','pt','a4');
+      var pageW = pdf.internal.pageSize.getWidth();
+      var pageH = pdf.internal.pageSize.getHeight();
+      var margin = 24;
+      var usableW = pageW - margin*2;
+      var usableH = pageH - margin*2;
+
+      var imgW = usableW;
+      var imgH = (canvas.height * imgW) / canvas.width;
+
+      if(imgH <= usableH){
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', margin, margin, imgW, imgH);
+      } else {
+        // slice the tall canvas into page-sized chunks
+        var pxPerPtY = canvas.width / imgW; // canvas px per output pt, x-axis basis (uniform scale)
+        var pageHeightInCanvasPx = usableH * pxPerPtY;
+        var totalPages = Math.ceil(canvas.height / pageHeightInCanvasPx);
+        for(var p = 0; p < totalPages; p++){
+          var sliceCanvas = document.createElement('canvas');
+          sliceCanvas.width = canvas.width;
+          var sliceHeight = Math.min(pageHeightInCanvasPx, canvas.height - p*pageHeightInCanvasPx);
+          sliceCanvas.height = sliceHeight;
+          var ctx = sliceCanvas.getContext('2d');
+          ctx.drawImage(canvas, 0, p*pageHeightInCanvasPx, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+          var sliceImgH = (sliceHeight * imgW) / canvas.width;
+          if(p > 0) pdf.addPage();
+          pdf.addImage(sliceCanvas.toDataURL('image/png'), 'PNG', margin, margin, imgW, sliceImgH);
+        }
+      }
+
+      pdf.save(currentFileBase()+'.pdf');
+      btn.disabled = false; btn.textContent = originalLabel;
+    }).catch(function(){
+      alert('Could not generate the PDF. Please try again, or use Print → Save as PDF instead.');
+      btn.disabled = false; btn.textContent = originalLabel;
+    });
+  };
+
+  function safeFilename(s){
+    return s.replace(/[^a-z0-9]+/gi,'-').replace(/^-+|-+$/g,'').toLowerCase() || 'attendance-sheet';
+  }
+
+  loadAll();
+})();
+</script>
+</body>
+</html>
